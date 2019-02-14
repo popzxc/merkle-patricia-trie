@@ -1,4 +1,4 @@
-class NibblesPath:
+class NibblePath:
     def __init__(self, data, offset = 0):
         self._data = data
         self._offset = offset
