@@ -230,12 +230,32 @@ class MerklePatriciaTrie:
             branch_reference = self._create_branch_node(path, value, node.path, node.value)
 
             if len(common_prefix) != 0:
-                return self._store_nde(Node.Extension(common_prefix, branch_reference))
+                return self._store_node(Node.Extension(common_prefix, branch_reference))
             else:
                 return branch_reference
 
         elif type(node) == Node.Extension:
-            pass
+            if path.starts_with(node.path):
+                new_reference = self.update_helper(node.next_ref, path.consume(len(node.path)), value)
+                return self.store_node(node.path, new_reference)
+
+            common_prefix = path.common_prefix(node.path)
+
+            path.consume(len(common_prefix))
+            node.path.consume(len(common_prefix))
+
+            branches = [b''] * 16
+            branch_value = value if len(path) == 0 else b''
+
+            self._create_branch_leaf(path, value, branches)
+            self._create_branch_extension(node.path, node.next_ref, branches)
+
+            branch_reference = self._store_node(Node.Branch(branches, branch_value))
+
+            if len(common_prefix) != 0:
+                return self._store_node(Node.Extension(common_prefix, branch_reference))
+            else:
+                return branch_reference
 
         elif type(node) == Node.Branch:
             pass
@@ -262,6 +282,16 @@ class MerklePatriciaTrie:
 
             leaf_ref = self._update(None, path.consume(1), value)
             branches[idx] = leaf_ref
+
+    def _create_branch_extension(self, path, next_ref, branches):
+        assert len(path) >= 1, "Path for extension node should contain at least one nibble"
+
+        if len(path) == 1:
+            branches[path.at(0)] = next_ref
+        else:
+            idx = path.at(0)
+            reference = self._store_node(Node.Extension(path.consume(1), next_ref))
+            branches[idx] = reference
 
     def _store_node(self, node):
         reference = Node.into_reference(node)
