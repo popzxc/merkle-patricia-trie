@@ -1,14 +1,17 @@
 import rlp
-from hash import hash
+from .hash import hash
 
 
 class NibblePath:
+    ODD_FLAG = 0x10
+    LEAF_FLAG = 0x20
+
     def __init__(self, data, offset=0):
         self._data = data
         self._offset = offset
 
     def __len__(self):
-        return self._data.len() * 2 - self._offset
+        return len(self._data) * 2 - self._offset
 
     def __eq__(self, other):
         if len(self) != len(other):
@@ -19,6 +22,17 @@ class NibblePath:
                 return False
 
         return True
+
+    def decode_with_type(data):
+        odd_len = data[0] & NibblePath.ODD_FLAG == NibblePath.ODD_FLAG
+        is_leaf = data[0] & NibblePath.LEAF_FLAG == NibblePath.LEAF_FLAG
+
+        offset = 1 if odd_len else 2
+
+        return NibblePath(data, offset), is_leaf
+
+    def decode(data):
+        return NibblePath.decode_with_type(data)[0]
 
     def starts_with(self, other):
         if len(other) > len(self):
@@ -32,9 +46,6 @@ class NibblePath:
 
     def consume(self, n_nibbles):
         self._offset += n_nibbles
-
-    def is_leaf(self):
-        return ord(self._data[0]) & 0x20 == 0x20
 
     def at(self, idx):
         idx = idx + self._offset
@@ -52,8 +63,33 @@ class NibblePath:
         self._offset += amount
         return self
 
-    def common_prefix(self):
+    def common_prefix(self, other):
+        least_len = min(len(self), len(other))
+
+        data = []
+
         pass
+
+    def encode(self, is_leaf):
+        output = []
+
+        nibbles_len = len(self)
+        is_odd = nibbles_len % 2 == 1
+
+        prefix = 0x00
+        prefix += 0x10 + self.at(0) if is_odd else 0x00
+        prefix += 0x20 if is_leaf else 0x00
+
+        output.append(prefix)
+
+        pos = nibbles_len % 2
+
+        while pos < nibbles_len:
+            byte = self.at(pos) * 16 + self.at(pos + 1)
+            output.append(byte)
+            pos += 2
+
+        return bytearray(output)
 
 
 class Node:
@@ -63,7 +99,7 @@ class Node:
             self.data = data
 
         def encode(self):
-            return rlp.encode([self.path, self.data])
+            return rlp.encode([self.path.encode(True), self.data])
 
     class Extension:
         def __init__(self, path, next_ref):
@@ -71,7 +107,7 @@ class Node:
             self.next_ref = next_ref
 
         def encode(self):
-            return rlp.encode([self.path, self.next_ref])
+            return rlp.encode([self.path.encode(False), self.next_ref])
 
     class Branch:
         def __init__(self, branches, data=None):
@@ -91,11 +127,11 @@ class Node:
             node_data = data[16]
             return Node.Branch(branches, node_data)
 
-        path = NibblePath(data[0])
-        if path.is_leaf():
-            return Node.Leaf(data[0], data[1])
+        path, is_leaf = NibblePath.decode_with_type(data[0])
+        if is_leaf:
+            return Node.Leaf(path, data[1])
         else:
-            return Node.Extension(data[0], data[1])
+            return Node.Extension(path, data[1])
 
     def into_reference(node):
         encoded_node = node.encode()
@@ -132,12 +168,14 @@ class MerklePatriciaTrie:
             return node
 
         if type(node) is Node.Leaf:
-            if NibblePath(node.path) == path:
+            if node.path == path:
                 return node
+
         elif type(node) is Node.Extension:
-            if path.starts_with(NibblePath(node.path)):
+            if path.starts_with(node.path):
                 rest_path = path.consume(len(node.path))
                 return self._get(node.next_ref, rest_path)
+
         elif type(node) is Node.Branch:
             branch = node.branches[path.at(0)]
             if len(branch) > 0:
@@ -146,8 +184,30 @@ class MerklePatriciaTrie:
         raise KeyError
 
     def update(self, encoded_key, encoded_value):
-        pass
+        path = NibblePath(encoded_key)
+
+        result = self._update(self._root, path, encoded_value)
+
+        self._root = result
+
+    def _update(self, node_ref, path, value):
+        if node_ref is None:
+            return self._store_node(Node.Leaf(path, value))
+
+        node = self._get_node(node_ref)
+
+        if type(node) == Node.Leaf:
+            if NibblePath.decode(node.path) == path:
+                return self._store_node(node)
+
+    def _store_node(self, node):
+        reference = Node.into_reference(node)
+        if len(reference) == 32:
+            self._storage[reference] = node.encode()
+        return reference
 
     def delete(self, encoded_key):
         if self._root is None:
             return
+
+        path = NibblePath(encoded_key)
