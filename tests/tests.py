@@ -34,10 +34,20 @@ class TestNibblePath(unittest.TestCase):
         common = nibbles_a.common_prefix(nibbles_b)
         self.assertEqual(common, mpt.NibblePath([0x12]))
 
+        nibbles_a = mpt.NibblePath([0x12, 0x34])
+        nibbles_b = mpt.NibblePath([0x12, 0x36])
+        common = nibbles_a.common_prefix(nibbles_b)
+        self.assertEqual(common, mpt.NibblePath([0x01, 0x23], offset=1))
+
         nibbles_a = mpt.NibblePath([0x12, 0x34], offset=1)
         nibbles_b = mpt.NibblePath([0x12, 0x56], offset=1)
         common = nibbles_a.common_prefix(nibbles_b)
         self.assertEqual(common, mpt.NibblePath([0x12], offset=1))
+
+        nibbles_a = mpt.NibblePath([0x52, 0x34])
+        nibbles_b = mpt.NibblePath([0x02, 0x56])
+        common = nibbles_a.common_prefix(nibbles_b)
+        self.assertEqual(common, mpt.NibblePath([]))
 
 
 class TestNode(unittest.TestCase):
