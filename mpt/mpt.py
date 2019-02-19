@@ -13,6 +13,9 @@ class NibblePath:
     def __len__(self):
         return len(self._data) * 2 - self._offset
 
+    def __repr__(self):
+        return "<NibblePath object with Data: {}, Offset: {}>".format(list(map(hex, self._data)), self._offset)
+
     def __eq__(self, other):
         if len(self) != len(other):
             return False
@@ -24,10 +27,10 @@ class NibblePath:
         return True
 
     def decode_with_type(data):
-        odd_len = data[0] & NibblePath.ODD_FLAG == NibblePath.ODD_FLAG
+        is_odd_len = data[0] & NibblePath.ODD_FLAG == NibblePath.ODD_FLAG
         is_leaf = data[0] & NibblePath.LEAF_FLAG == NibblePath.LEAF_FLAG
 
-        offset = 1 if odd_len else 2
+        offset = 1 if is_odd_len else 2
 
         return NibblePath(data, offset), is_leaf
 
@@ -65,10 +68,29 @@ class NibblePath:
 
     def common_prefix(self, other):
         least_len = min(len(self), len(other))
+        common_len = 0
+        for i in range(least_len):
+            if self.at(i) != other.at(i):
+                break
+            common_len += 1
 
+        bytes_len = (common_len + 1) / 2
         data = []
 
-        pass
+        is_odd_len = common_len % 2 == 1
+        pos = 0
+
+        if is_odd_len:
+            data.append(self.at(pos))
+            pos += 1
+
+        while pos < common_len:
+            data.append(self.at(pos) * 16 + self.at(pos + 1))
+            pos += 2
+
+        offset = 1 if is_odd_len else 0
+
+        return NibblePath(data, offset)
 
     def encode(self, is_leaf):
         output = []
@@ -115,7 +137,7 @@ class Node:
             self.data = data
 
         def encode(self):
-            return rlp.encode([self.branches, self.data])
+            return rlp.encode(self.branches + [self.data])
 
     def decode(encoded_data):
         data = rlp.decode(encoded_data)
@@ -199,6 +221,47 @@ class MerklePatriciaTrie:
         if type(node) == Node.Leaf:
             if NibblePath.decode(node.path) == path:
                 return self._store_node(node)
+
+            common_prefix = path.common_prefix(node.path)
+
+            path.consume(len(common_prefix))
+            node.path.consume(len(common_prefix))
+
+            branch_reference = self._create_branch_node(path, value, node.path, node.value)
+
+            if len(common_prefix) != 0:
+                return self._store_nde(Node.Extension(common_prefix, branch_reference))
+            else:
+                return branch_reference
+
+        elif type(node) == Node.Extension:
+            pass
+
+        elif type(node) == Node.Branch:
+            pass
+
+    def _create_branch_node(self, path_a, value_a, path_b, value_b):
+        assert len(path_a) != 0 or len(path_b) != 0
+
+        branches = [b''] * 16
+
+        branch_value = b''
+        if len(path_a) == 0:
+            branch_value = value_a
+        elif len(path_b) == 0:
+            branch_value = value_b
+
+        self._create_branch_leaf(path_a, value_a, branches)
+        self._create_branch_leaf(path_b, value_b, branches)
+
+        self._store_node(Node.Branch(branches, branch_value))
+
+    def _create_branch_leaf(self, path, value, branches):
+        if len(path) > 0:
+            idx = path.at(0)
+
+            leaf_ref = self._update(None, path.consume(1), value)
+            branches[idx] = leaf_ref
 
     def _store_node(self, node):
         reference = Node.into_reference(node)
