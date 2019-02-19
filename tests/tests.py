@@ -95,3 +95,21 @@ class TestMPT(unittest.TestCase):
         gotten_value = trie.get(key)
 
         self.assertEqual(value, gotten_value)
+
+    def test_insert_get_many(self):
+        def v(value):
+            return rlp.encode(value)
+
+        storage = {}
+
+        trie = mpt.MerklePatriciaTrie(storage)
+
+        trie.update(v(b'do'), v(b'verb'))
+        trie.update(v(b'dog'), v(b'puppy'))
+        trie.update(v(b'doge'), v(b'coin'))
+        trie.update(v(b'horse'), v(b'stallion'))
+
+        self.assertEqual(trie.get(v(b'do')), v(b'verb'))
+        self.assertEqual(trie.get(v(b'dog')), v(b'puppy'))
+        self.assertEqual(trie.get(v(b'doge')), v(b'coin'))
+        self.assertEqual(trie.get(v(b'horse')), v(b'stallion'))

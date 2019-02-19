@@ -213,13 +213,13 @@ class MerklePatriciaTrie:
         self._root = result
 
     def _update(self, node_ref, path, value):
-        if node_ref is None:
+        if not node_ref:
             return self._store_node(Node.Leaf(path, value))
 
         node = self._get_node(node_ref)
 
         if type(node) == Node.Leaf:
-            if NibblePath.decode(node.path) == path:
+            if node.path == path:
                 return self._store_node(node)
 
             common_prefix = path.common_prefix(node.path)
@@ -227,7 +227,7 @@ class MerklePatriciaTrie:
             path.consume(len(common_prefix))
             node.path.consume(len(common_prefix))
 
-            branch_reference = self._create_branch_node(path, value, node.path, node.value)
+            branch_reference = self._create_branch_node(path, value, node.path, node.data)
 
             if len(common_prefix) != 0:
                 return self._store_node(Node.Extension(common_prefix, branch_reference))
@@ -236,8 +236,8 @@ class MerklePatriciaTrie:
 
         elif type(node) == Node.Extension:
             if path.starts_with(node.path):
-                new_reference = self.update_helper(node.next_ref, path.consume(len(node.path)), value)
-                return self.store_node(node.path, new_reference)
+                new_reference = self._update(node.next_ref, path.consume(len(node.path)), value)
+                return self._store_node(Node.Extension(node.path, new_reference))
 
             common_prefix = path.common_prefix(node.path)
 
@@ -258,7 +258,15 @@ class MerklePatriciaTrie:
                 return branch_reference
 
         elif type(node) == Node.Branch:
-            pass
+            if len(path) == 0:
+                return self._store_node(Node.Branch(node.branches, value))
+
+            idx = path.at(0)
+            new_reference = self._update(node.branches[idx], path.consume(1), value)
+
+            node.branches[idx] = new_reference
+
+            return self._store_node(node)
 
     def _create_branch_node(self, path_a, value_a, path_b, value_b):
         assert len(path_a) != 0 or len(path_b) != 0
@@ -274,7 +282,7 @@ class MerklePatriciaTrie:
         self._create_branch_leaf(path_a, value_a, branches)
         self._create_branch_leaf(path_b, value_b, branches)
 
-        self._store_node(Node.Branch(branches, branch_value))
+        return self._store_node(Node.Branch(branches, branch_value))
 
     def _create_branch_leaf(self, path, value, branches):
         if len(path) > 0:
