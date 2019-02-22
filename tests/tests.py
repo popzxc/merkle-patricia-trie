@@ -1,6 +1,7 @@
 import unittest
 import mpt
 import rlp
+import random
 
 
 class TestNibblePath(unittest.TestCase):
@@ -108,9 +109,6 @@ class TestMPT(unittest.TestCase):
         self.assertEqual(value, gotten_value)
 
     def test_insert_get_many(self):
-        def v(value):
-            return rlp.encode(value)
-
         storage = {}
 
         trie = mpt.MerklePatriciaTrie(storage)
@@ -124,3 +122,17 @@ class TestMPT(unittest.TestCase):
         self.assertEqual(trie.get(b'dog'), b'puppy')
         self.assertEqual(trie.get(b'doge'), b'coin')
         self.assertEqual(trie.get(b'horse'), b'stallion')
+
+    def test_insert_get_lots(self):
+        random.seed(42)
+        storage = {}
+        rand_numbers = [random.randint(1, 1000000) for _ in range(1000)]
+        keys = list(map(lambda x: bytes('{}'.format(x), 'utf-8'), rand_numbers))
+
+        trie = mpt.MerklePatriciaTrie(storage)
+
+        for kv in keys:
+            trie.update(kv, kv * 2)
+
+        for kv in keys:
+            self.assertEqual(trie.get(kv), kv * 2)
