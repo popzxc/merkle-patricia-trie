@@ -49,6 +49,17 @@ class TestNibblePath(unittest.TestCase):
         common = nibbles_a.common_prefix(nibbles_b)
         self.assertEqual(common, mpt.NibblePath([]))
 
+    def test_combine(self):
+        nibbles_a = mpt.NibblePath([0x12, 0x34])
+        nibbles_b = mpt.NibblePath([0x56, 0x78])
+        common = nibbles_a.combine(nibbles_b)
+        self.assertEqual(common, mpt.NibblePath([0x12, 0x34, 0x56, 0x78]))
+
+        nibbles_a = mpt.NibblePath([0x12, 0x34], offset=1)
+        nibbles_b = mpt.NibblePath([0x56, 0x78], offset=3)
+        common = nibbles_a.combine(nibbles_b)
+        self.assertEqual(common, mpt.NibblePath([0x23, 0x48]))
+
 
 class TestNode(unittest.TestCase):
     def assertRoundtrip(self, raw_node, expected_type):

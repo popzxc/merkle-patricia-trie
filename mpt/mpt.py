@@ -1,3 +1,4 @@
+from enum import Enum
 import rlp
 from .hash import hash
 
@@ -66,6 +67,25 @@ class NibblePath:
         self._offset += amount
         return self
 
+    def _create_new(path, length):
+        bytes_len = (length + 1) / 2
+        data = []
+
+        is_odd_len = length % 2 == 1
+        pos = 0
+
+        if is_odd_len:
+            data.append(path.at(pos))
+            pos += 1
+
+        while pos < length:
+            data.append(path.at(pos) * 16 + path.at(pos + 1))
+            pos += 2
+
+        offset = 1 if is_odd_len else 0
+
+        return NibblePath(data, offset)
+
     def common_prefix(self, other):
         least_len = min(len(self), len(other))
         common_len = 0
@@ -74,23 +94,7 @@ class NibblePath:
                 break
             common_len += 1
 
-        bytes_len = (common_len + 1) / 2
-        data = []
-
-        is_odd_len = common_len % 2 == 1
-        pos = 0
-
-        if is_odd_len:
-            data.append(self.at(pos))
-            pos += 1
-
-        while pos < common_len:
-            data.append(self.at(pos) * 16 + self.at(pos + 1))
-            pos += 2
-
-        offset = 1 if is_odd_len else 0
-
-        return NibblePath(data, offset)
+        return NibblePath._create_new(self, common_len)
 
     def encode(self, is_leaf):
         output = []
@@ -111,7 +115,25 @@ class NibblePath:
             output.append(byte)
             pos += 2
 
-        return bytearray(output)
+        return bytes(output)
+
+    class _Chained:
+        def __init__(self, first, second):
+            self.first = first
+            self.second = second
+
+        def __len__(self):
+            return len(self.first) + len(self.second)
+
+        def at(self, idx):
+            if idx < len(self.first):
+                return self.first.at(idx)
+            else:
+                return self.second.at(idx - len(self.first))
+
+    def combine(self, other):
+        chained = NibblePath._Chained(self, other)
+        return NibblePath._create_new(chained, len(chained))
 
 
 class Node:
