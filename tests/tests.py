@@ -89,8 +89,8 @@ class TestMPT(unittest.TestCase):
         storage = {}
         trie = mpt.MerklePatriciaTrie(storage)
 
-        key = rlp.encode(b'key_00000000000000000000000000000000')
-        value = rlp.encode(b'value_00000000000000000000000000000000')
+        key = rlp.encode(b'key_0000000000000000000000000000000000000000000000000000000000000000')
+        value = rlp.encode(b'value_0000000000000000000000000000000000000000000000000000000000000000')
         trie.update(key, value)
         gotten_value = trie.get(key)
 
@@ -104,12 +104,12 @@ class TestMPT(unittest.TestCase):
 
         trie = mpt.MerklePatriciaTrie(storage)
 
-        trie.update(v(b'do'), v(b'verb'))
-        trie.update(v(b'dog'), v(b'puppy'))
-        trie.update(v(b'doge'), v(b'coin'))
-        trie.update(v(b'horse'), v(b'stallion'))
+        trie.update(b'do', b'verb')
+        trie.update(b'dog', b'puppy')
+        trie.update(b'doge', b'coin')
+        trie.update(b'horse', b'stallion')
 
-        self.assertEqual(trie.get(v(b'do')), v(b'verb'))
-        self.assertEqual(trie.get(v(b'dog')), v(b'puppy'))
-        self.assertEqual(trie.get(v(b'doge')), v(b'coin'))
-        self.assertEqual(trie.get(v(b'horse')), v(b'stallion'))
+        self.assertEqual(trie.get(b'do'), b'verb')
+        self.assertEqual(trie.get(b'dog'), b'puppy')
+        self.assertEqual(trie.get(b'doge'), b'coin')
+        self.assertEqual(trie.get(b'horse'), b'stallion')
