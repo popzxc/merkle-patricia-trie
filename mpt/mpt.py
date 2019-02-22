@@ -198,7 +198,18 @@ class MerklePatriciaTrie:
             raw_node = node_ref
         return Node.decode(raw_node)
 
+    def root_hash(self):
+        if not self._root:
+            return None  # TODO hash of an empty trie
+        elif len(self._root) == 32:
+            return self._root
+        else:
+            return hash(self._root)
+
     def get(self, encoded_key):
+        if not self._root:
+            raise KeyError
+
         path = NibblePath(encoded_key)
 
         result_node = self._get(self._root, path)
@@ -329,8 +340,139 @@ class MerklePatriciaTrie:
             self._storage[reference] = node.encode()
         return reference
 
+    class DeleteAction(Enum):
+        DELETED = 1,
+        UPDATED = 2,
+        USELESS_BRANCH = 3
+
     def delete(self, encoded_key):
         if self._root is None:
             return
 
         path = NibblePath(encoded_key)
+
+        action, info = self._delete(self._root, path)
+
+        if action == MerklePatriciaTrie.DeleteAction.DELETED:
+            # Trie is empty
+            self._root = None
+        elif action == MerklePatriciaTrie.DeleteAction.UPDATED:
+            new_root = info
+            self._root = new_root
+        elif action == MerklePatriciaTrie.DeleteAction.USELESS_BRANCH:
+            _, new_root = info
+            self._root = new_root
+
+    def _delete(self, node_ref, path):
+        node = self._get_node(node_ref)
+
+        if type(node) == Node.Leaf:
+            if len(path) == 0 or path == node.path:
+                return MerklePatriciaTrie.DeleteAction.DELETED, None
+            else:
+                raise KeyError
+
+        elif type(node) == Node.Extension:
+            if not path.starts_with(node.path):
+                raise KeyError
+
+            action, info = self._delete(node.next_ref, path.consume(len(node.path)))
+
+            if action == MerklePatriciaTrie.DeleteAction.DELETED:
+                return action, None
+            elif action == MerklePatriciaTrie.DeleteAction.UPDATED:
+                child_ref = info
+                new_ref = self._store_node(Node.Extension(node.path, child_ref))
+                return action, new_ref
+            elif action == MerklePatriciaTrie.DeleteAction.USELESS_BRANCH:
+                stored_path, stored_ref = info
+
+                child = self._get_node(stored_ref)
+
+                new_reference = None
+                if type(child) == Node.Leaf:
+                    path = NibblePath.combine(node.path, child.path)
+                    new_reference = self._store_node(Node.Leaf(path, child.data))
+                elif type(child) == Node.Extension:
+                    path = NibblePath.combine(node.path, child.path)
+                    new_reference = self._store_node(Node.Extension(path, child.next_ref))
+                elif type(child) == Node.Branch:
+                    path = NibblePath.combine(node.path, stored_path)
+                    new_reference = self._store_node(Node.Extension(path, node.next_ref))
+
+                return MerklePatriciaTrie.DeleteAction.UPDATED, new_reference
+
+        elif type(node) == Node.Branch:
+            action = None
+            idx = None
+            info = None
+
+            if len(path) == 0 and len(node.data) != 0:
+                node.data = None
+                action = MerklePatriciaTrie.DeleteAction.DELETED
+            else:
+                idx = path.at(0)
+
+                if len(node.branches[idx]) == 0:
+                    raise KeyError
+
+                action, info = self._delete(node.branches[idx], path.consume(1))
+                node.branches[idx] = b''
+
+            if action == MerklePatriciaTrie.DeleteAction.DELETED:
+                non_empty_count = sum(map(lambda x: 1 if len(x) > 0 else 0, node.branches))
+
+                if non_empty_count == 0 and len(node.data) == 0:
+                    # Branch node is empty, just delete it.
+                    return MerklePatriciaTrie.DeleteAction.DELETED, None
+                elif non_empty_count == 0 and len(node.data) != 0:
+                    # No branches, just value.
+                    path = NibblePath([])
+                    reference = self._store_node(Node.Leaf(path, node.data))
+
+                    return MerklePatriciaTrie.DeleteAction.USELESS_BRANCH, (path, reference)
+                elif non_empty_count == 1 and len(node.data) == 0:
+                    # No value and one branch
+                    return self._process_branch_removal(node.branches)
+                else:
+                    # Branch has value and 1+ branches or no value and 2+ branches.
+                    reference = self._store_node(node)
+                    return MerklePatriciaTrie.DeleteAction.UPDATED, reference
+            elif action == MerklePatriciaTrie.DeleteAction.UPDATED:
+                next_ref = info
+                node.branches[idx] = next_ref
+                reference = self._store_node(node)
+                return MerklePatriciaTrie.DeleteAction.UPDATED, reference
+            elif action == MerklePatriciaTrie.DeleteAction.USELESS_BRANCH:
+                _, next_ref = info
+                node.branches[idx] = next_ref
+                reference = self._store_node(node)
+                return MerklePatriciaTrie.DeleteAction.UPDATED, reference
+
+    def _process_branch_removal(self, branches):
+
+        # Find the index of the only stored branch.
+        idx = 0
+        for i in range(len(branches)):
+            if len(branches[i]) > 0:
+                idx = i
+                break
+
+        # Path in leaf will contain one nibble (at this step).
+        prefix_nibble = NibblePath([idx], offset=1)
+
+        child = self._get_node(branches[idx])
+
+        path = None
+        reference = None
+        if type(child) == Node.Leaf:
+            path = NibblePath.combine(prefix_nibble, child.path)
+            reference = self._store_node(Node.Leaf(path, child.data))
+        elif type(child) == Node.Extension:
+            path = NibblePath.combine(prefix_nibble, child.path)
+            reference = self._store_node(Node.Extension(path, child.next_ref))
+        elif type(child) == Node.Branch:
+            path = prefix_nibble
+            reference = self._store_node(Node.Extension(path, branches[idx]))
+
+        return MerklePatriciaTrie.DeleteAction.USELESS_BRANCH, (path, reference)

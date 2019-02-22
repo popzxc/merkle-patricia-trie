@@ -126,7 +126,7 @@ class TestMPT(unittest.TestCase):
     def test_insert_get_lots(self):
         random.seed(42)
         storage = {}
-        rand_numbers = [random.randint(1, 1000000) for _ in range(1000)]
+        rand_numbers = [random.randint(1, 1000000) for _ in range(100)]
         keys = list(map(lambda x: bytes('{}'.format(x), 'utf-8'), rand_numbers))
 
         trie = mpt.MerklePatriciaTrie(storage)
@@ -136,3 +136,37 @@ class TestMPT(unittest.TestCase):
 
         for kv in keys:
             self.assertEqual(trie.get(kv), kv * 2)
+
+    def test_delete_one(self):
+        storage = {}
+        trie = mpt.MerklePatriciaTrie(storage)
+
+        trie.update(b'key', b'value')
+        trie.delete(b'key')
+
+        with self.assertRaises(KeyError):
+            trie.get(b'key')
+
+    def test_delete_many(self):
+        storage = {}
+
+        trie = mpt.MerklePatriciaTrie(storage)
+
+        trie.update(b'do', b'verb')
+        trie.update(b'dog', b'puppy')
+        trie.update(b'doge', b'coin')
+        trie.update(b'horse', b'stallion')
+
+        root_hash = trie.root_hash()
+
+        trie.update(b'a', b'aaa')
+        trie.update(b'some_key', b'some_value')
+        trie.update(b'dodog', b'do_dog')
+
+        trie.delete(b'a')
+        trie.delete(b'some_key')
+        trie.delete(b'dodog')
+
+        new_root_hash = trie.root_hash()
+
+        self.assertEqual(root_hash, new_root_hash)
