@@ -170,3 +170,17 @@ class TestMPT(unittest.TestCase):
         new_root_hash = trie.root_hash()
 
         self.assertEqual(root_hash, new_root_hash)
+
+    def test_root_hash(self):
+        storage = {}
+
+        trie = mpt.MerklePatriciaTrie(storage)
+
+        trie.update(b'do', b'verb')
+        trie.update(b'dog', b'puppy')
+        trie.update(b'doge', b'coin')
+        trie.update(b'horse', b'stallion')
+
+        root_hash = trie.root_hash()
+
+        self.assertEqual(root_hash, bytes.fromhex('5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84'))
