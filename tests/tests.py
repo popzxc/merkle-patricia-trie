@@ -171,6 +171,22 @@ class TestMPT(unittest.TestCase):
 
         self.assertEqual(root_hash, new_root_hash)
 
+    def test_delete_lots(self):
+        random.seed(42)
+        storage = {}
+        rand_numbers = [random.randint(1, 1000000) for _ in range(100)]
+        keys = list(map(lambda x: bytes('{}'.format(x), 'utf-8'), rand_numbers))
+
+        trie = mpt.MerklePatriciaTrie(storage)
+
+        for kv in keys:
+            trie.update(kv, kv * 2)
+
+        for kv in keys:
+            trie.delete(kv)
+
+        self.assertIsNone(trie.root_hash())
+
     def test_root_hash(self):
         storage = {}
 
