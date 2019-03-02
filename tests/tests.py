@@ -197,6 +197,24 @@ class TestMPT(unittest.TestCase):
 
         self.assertEqual(root_hash, bytes.fromhex('5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84'))
 
+    def test_root_hash_after_updates(self):
+        storage = {}
+
+        trie = mpt.MerklePatriciaTrie(storage)
+
+        trie.update(b'do', b'verb')
+        trie.update(b'dog', b'puppy1')
+        trie.update(b'doge', b'coin1')
+        trie.update(b'horse', b'stallion1')
+
+        trie.update(b'dog', b'puppy')
+        trie.update(b'doge', b'coin')
+        trie.update(b'horse', b'stallion')
+
+        root_hash = trie.root_hash()
+
+        self.assertEqual(root_hash, bytes.fromhex('5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84'))
+
     def test_root_hash_after_deletes(self):
         storage = {}
 
@@ -220,3 +238,27 @@ class TestMPT(unittest.TestCase):
         root_hash = trie.root_hash()
 
         self.assertEqual(root_hash, bytes.fromhex('5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84'))
+
+    def test_trie_from_old_root(self):
+        storage = {}
+
+        trie = mpt.MerklePatriciaTrie(storage)
+
+        trie.update(b'do', b'verb')
+        trie.update(b'dog', b'puppy')
+
+        root_hash = trie.root_hash()
+
+        trie.delete(b'dog')
+        trie.update(b'do', b'not_a_verb')
+
+        trie_from_old = mpt.MerklePatriciaTrie(storage, root_hash)
+
+        # Old.
+        self.assertEqual(trie_from_old.get(b'do'), b'verb')
+        self.assertEqual(trie_from_old.get(b'dog'), b'puppy')
+
+        # New.
+        self.assertEqual(trie.get(b'do'), b'not_a_verb')
+        with self.assertRaises(KeyError):
+            trie.get(b'dog')
