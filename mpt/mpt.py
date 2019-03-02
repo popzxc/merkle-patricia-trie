@@ -6,6 +6,9 @@ from .node import Node
 
 class MerklePatriciaTrie:
     def __init__(self, storage, root=None):
+        if root == Node.EMPTY_HASH:
+            root = None
+
         self._storage = storage
         self._root = root
 
@@ -19,7 +22,7 @@ class MerklePatriciaTrie:
 
     def root_hash(self):
         if not self._root:
-            return None  # TODO hash of an empty trie
+            return Node.EMPTY_HASH
         elif len(self._root) == 32:
             return self._root
         else:

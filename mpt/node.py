@@ -18,6 +18,8 @@ def _prepare_reference_for_encoding(ref):
 
 
 class Node:
+    EMPTY_HASH = keccak_hash(rlp.encode(b''))
+
     class Leaf:
         def __init__(self, path, data):
             self.path = path

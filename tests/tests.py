@@ -181,7 +181,7 @@ class TestMPT(unittest.TestCase):
         for kv in keys:
             trie.delete(kv)
 
-        self.assertIsNone(trie.root_hash())
+        self.assertEqual(trie.root_hash(), mpt.Node.EMPTY_HASH)
 
     def test_root_hash(self):
         storage = {}
