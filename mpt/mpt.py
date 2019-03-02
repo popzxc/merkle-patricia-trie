@@ -270,6 +270,7 @@ class MerklePatriciaTrie:
 
         if type(node) == Node.Leaf:
             if node.path == path:
+                node.data = value
                 return self._store_node(node)
 
             common_prefix = path.common_prefix(node.path)
