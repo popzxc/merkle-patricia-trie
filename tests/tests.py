@@ -70,10 +70,6 @@ class TestNode(unittest.TestCase):
         self.assertEqual(type(decoded), expected_type)
         self.assertEqual(raw_node, encoded)
 
-    def test_serde(self):
-        # TODO test that serialization/deserialization is correct via hard-coded example.
-        pass
-
     def test_leaf(self):
         # Path 0xABC. 0x3_ at the beginning: 0x20 (for leaf type) + 0x10 (for odd len)
         nibbles_path = bytearray([0x3A, 0xBC])
@@ -196,6 +192,30 @@ class TestMPT(unittest.TestCase):
         trie.update(b'dog', b'puppy')
         trie.update(b'doge', b'coin')
         trie.update(b'horse', b'stallion')
+
+        root_hash = trie.root_hash()
+
+        self.assertEqual(root_hash, bytes.fromhex('5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84'))
+
+    def test_root_hash_after_deletes(self):
+        storage = {}
+
+        trie = mpt.MerklePatriciaTrie(storage)
+
+        trie.update(b'do', b'verb')
+        trie.update(b'dog', b'puppy')
+        trie.update(b'doge', b'coin')
+        trie.update(b'horse', b'stallion')
+
+        trie.update(b'dodo', b'pizza')
+        trie.update(b'hover', b'board')
+        trie.update(b'capital', b'Moscow')
+        trie.update(b'a', b'b')
+
+        trie.delete(b'dodo')
+        trie.delete(b'hover')
+        trie.delete(b'capital')
+        trie.delete(b'a')
 
         root_hash = trie.root_hash()
 
