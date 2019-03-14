@@ -6,8 +6,24 @@ from .node import Node
 
 class MerklePatriciaTrie:
     def __init__(self, storage, root=None):
-        if root == Node.EMPTY_HASH:
-            root = None
+        """
+        Creates a new instance of MPT.
+
+        MerklePatriciaTrie works like a wrapper over provided storage. Storage must implement dict-like interface.
+        Any data structure that implements `__getitem__` and `__setitem__` should be OK.
+
+        Parameters
+        ----------
+        storage: dict-like
+            Data structure to store all the data of MPT.
+        root: bytes
+            (Optional) Root node (not root hash!) of the trie. If not provided, tree will be considered empty.
+
+        Returns
+        -------
+        MerklePatriciaTrie
+            An instance of MPT.
+        """
 
         self._storage = storage
         self._root = root
@@ -20,7 +36,10 @@ class MerklePatriciaTrie:
             raw_node = node_ref
         return Node.decode(raw_node)
 
+
     def root_hash(self):
+        """ Returns a hash of the trie's root node. For empty trie it's the hash of the RLP-encoded empty string. """
+
         if not self._root:
             return Node.EMPTY_HASH
         elif len(self._root) == 32:
@@ -29,6 +48,27 @@ class MerklePatriciaTrie:
             return keccak_hash(self._root)
 
     def get(self, encoded_key):
+        """
+        This method gets a value associtated with provided key.
+
+        Note: this method does not RLP-encode the key. If you use encoded keys, you should encode it yourself.
+
+        Parameters
+        ----------
+        encoded_key: bytes
+            RLP-encoded key.
+
+        Returns
+        -------
+        bytes
+            Stored value associated with provided key.
+
+
+        Raises
+        ------
+        KeyError
+            KeyError is raised if there is no value assotiated with provided key.
+        """
         if not self._root:
             raise KeyError
 
@@ -37,6 +77,62 @@ class MerklePatriciaTrie:
         result_node = self._get(self._root, path)
 
         return result_node.data
+
+    def update(self, encoded_key, encoded_value):
+        """
+        This method updates a provided key-value pair into the trie.
+
+        If there is no such a key in the trie, a new entry will be created.
+        Otherwise value associtaed with key is updated.
+        Note: this method does not RLP-encode neither key or value. If you use encoded keys,
+        you should encode it yourself.
+
+        Parameters
+        ----------
+        encoded_key: bytes
+            RLP-encoded key.
+        encoded_value: bytes
+            RLP-encoded value.
+        """
+        path = NibblePath(encoded_key)
+
+        result = self._update(self._root, path, encoded_value)
+
+        self._root = result
+
+    def delete(self, encoded_key):
+        '''
+        This method removes a value associtated with provided key.
+
+        Note: this method does not RLP-encode the key. If you use encoded keys, you should encode it yourself.
+
+        Parameters
+        ----------
+        encoded_key: bytes
+            RLP-encoded key.
+
+        Raises
+        ------
+        KeyError
+            KeyError is raised if there is no value assotiated with provided key.
+        '''
+
+        if self._root is None:
+            return
+
+        path = NibblePath(encoded_key)
+
+        action, info = self._delete(self._root, path)
+
+        if action == MerklePatriciaTrie.DeleteAction.DELETED:
+            # Trie is empty
+            self._root = None
+        elif action == MerklePatriciaTrie.DeleteAction.UPDATED:
+            new_root = info
+            self._root = new_root
+        elif action == MerklePatriciaTrie.DeleteAction.USELESS_BRANCH:
+            _, new_root = info
+            self._root = new_root
 
     def _get(self, node_ref, path):
         node = self._get_node(node_ref)
@@ -59,13 +155,6 @@ class MerklePatriciaTrie:
                 return self._get(branch, path.consume(1))
 
         raise KeyError
-
-    def update(self, encoded_key, encoded_value):
-        path = NibblePath(encoded_key)
-
-        result = self._update(self._root, path, encoded_value)
-
-        self._root = result
 
     def _update(self, node_ref, path, value):
         if not node_ref:
@@ -168,24 +257,6 @@ class MerklePatriciaTrie:
         UPDATED = 2,
         USELESS_BRANCH = 3
 
-    def delete(self, encoded_key):
-        if self._root is None:
-            return
-
-        path = NibblePath(encoded_key)
-
-        action, info = self._delete(self._root, path)
-
-        if action == MerklePatriciaTrie.DeleteAction.DELETED:
-            # Trie is empty
-            self._root = None
-        elif action == MerklePatriciaTrie.DeleteAction.UPDATED:
-            new_root = info
-            self._root = new_root
-        elif action == MerklePatriciaTrie.DeleteAction.USELESS_BRANCH:
-            _, new_root = info
-            self._root = new_root
-
     def _delete(self, node_ref, path):
         node = self._get_node(node_ref)
 
@@ -212,17 +283,18 @@ class MerklePatriciaTrie:
 
                 child = self._get_node(stored_ref)
 
-                new_reference = None
+                new_node = None
                 if type(child) == Node.Leaf:
                     path = NibblePath.combine(node.path, child.path)
-                    new_reference = self._store_node(Node.Leaf(path, child.data))
+                    new_node = Node.Leaf(path, child.data)
                 elif type(child) == Node.Extension:
                     path = NibblePath.combine(node.path, child.path)
-                    new_reference = self._store_node(Node.Extension(path, child.next_ref))
+                    new_node = Node.Extension(path, child.next_ref)
                 elif type(child) == Node.Branch:
                     path = NibblePath.combine(node.path, stored_path)
-                    new_reference = self._store_node(Node.Extension(path, node.next_ref))
+                    new_node = Node.Extension(path, node.next_ref)
 
+                new_reference = self._store_node(new_node)
                 return MerklePatriciaTrie.DeleteAction.UPDATED, new_reference
 
         elif type(node) == Node.Branch:
@@ -231,7 +303,7 @@ class MerklePatriciaTrie:
             info = None
 
             if len(path) == 0 and len(node.data) != 0:
-                node.data = None
+                node.data = b''
                 action = MerklePatriciaTrie.DeleteAction.DELETED
             else:
                 idx = path.at(0)
@@ -273,7 +345,6 @@ class MerklePatriciaTrie:
                 return MerklePatriciaTrie.DeleteAction.UPDATED, reference
 
     def _process_branch_removal(self, branches):
-
         # Find the index of the only stored branch.
         idx = 0
         for i in range(len(branches)):
@@ -287,15 +358,18 @@ class MerklePatriciaTrie:
         child = self._get_node(branches[idx])
 
         path = None
-        reference = None
+        node = None
+
         if type(child) == Node.Leaf:
             path = NibblePath.combine(prefix_nibble, child.path)
-            reference = self._store_node(Node.Leaf(path, child.data))
+            node = Node.Leaf(path, child.data)
         elif type(child) == Node.Extension:
             path = NibblePath.combine(prefix_nibble, child.path)
-            reference = self._store_node(Node.Extension(path, child.next_ref))
+            node = Node.Extension(path, child.next_ref)
         elif type(child) == Node.Branch:
             path = prefix_nibble
-            reference = self._store_node(Node.Extension(path, branches[idx]))
+            node = Node.Extension(path, branches[idx])
+
+        reference = self._store_node(node)
 
         return MerklePatriciaTrie.DeleteAction.USELESS_BRANCH, (path, reference)
