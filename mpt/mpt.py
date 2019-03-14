@@ -36,6 +36,9 @@ class MerklePatriciaTrie:
             raw_node = node_ref
         return Node.decode(raw_node)
 
+    def root(self):
+        """ Returns a root node of the trie. Type is `bytes` if trie isn't empty and `None` othrewise. """
+        return self._root
 
     def root_hash(self):
         """ Returns a hash of the trie's root node. For empty trie it's the hash of the RLP-encoded empty string. """

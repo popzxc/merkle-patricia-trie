@@ -170,7 +170,7 @@ class TestMPT(unittest.TestCase):
     def test_delete_lots(self):
         random.seed(42)
         storage = {}
-        rand_numbers = [random.randint(1, 1000000) for _ in range(100)]
+        rand_numbers = set([random.randint(1, 1000000) for _ in range(100)])  # Unique only.
         keys = list(map(lambda x: bytes('{}'.format(x), 'utf-8'), rand_numbers))
 
         trie = mpt.MerklePatriciaTrie(storage)
@@ -247,7 +247,7 @@ class TestMPT(unittest.TestCase):
         trie.update(b'do', b'verb')
         trie.update(b'dog', b'puppy')
 
-        root_hash = trie.root_hash()
+        root_hash = trie.root()
 
         trie.delete(b'dog')
         trie.update(b'do', b'not_a_verb')
