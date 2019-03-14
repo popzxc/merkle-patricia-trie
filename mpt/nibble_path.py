@@ -98,8 +98,8 @@ class NibblePath:
         is_odd = nibbles_len % 2 == 1
 
         prefix = 0x00
-        prefix += 0x10 + self.at(0) if is_odd else 0x00
-        prefix += 0x20 if is_leaf else 0x00
+        prefix += self.ODD_FLAG + self.at(0) if is_odd else 0x00
+        prefix += self.LEAF_FLAG if is_leaf else 0x00
 
         output.append(prefix)
 
