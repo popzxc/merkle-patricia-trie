@@ -34,6 +34,22 @@ except KeyError:
     print('Not accessible in a new trie.')
 ```
 
+## Installing
+
+Install and update using [pip](https://pip.pypa.io/en/stable/quickstart/):
+
+```
+pip install -U eth_mpt
+```
+
+## Documentation
+
+Documentation can be found on [readthedocs](https://merkle-patricia-trie.readthedocs.io/en/latest/).
+
+## Contributing
+
+All the contributors are welcome. If you can make this library better, don't hesitate to :)
+
 ## Testing
 
 ```bash
