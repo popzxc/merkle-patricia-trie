@@ -5,7 +5,7 @@ from .node import Node
 
 
 class MerklePatriciaTrie:
-    def __init__(self, storage, root=None):
+    def __init__(self, storage, root=None, secure=False):
         """
         Creates a new instance of MPT.
 
@@ -18,6 +18,8 @@ class MerklePatriciaTrie:
             Data structure to store all the data of MPT.
         root: bytes
             (Optional) Root node (not root hash!) of the trie. If not provided, tree will be considered empty.
+        secure: bool
+            (Optional) In secure mode all the keys are hashed using keccak256 internally.
 
         Returns
         -------
@@ -27,6 +29,7 @@ class MerklePatriciaTrie:
 
         self._storage = storage
         self._root = root
+        self._secure = secure
 
     def root(self):
         """ Returns a root node of the trie. Type is `bytes` if trie isn't empty and `None` othrewise. """
@@ -66,6 +69,9 @@ class MerklePatriciaTrie:
         if not self._root:
             raise KeyError
 
+        if self._secure:
+            encoded_key = keccak_hash(encoded_key)
+
         path = NibblePath(encoded_key)
 
         result_node = self._get(self._root, path)
@@ -88,6 +94,9 @@ class MerklePatriciaTrie:
         encoded_value: bytes
             RLP-encoded value.
         """
+        if self._secure:
+            encoded_key = keccak_hash(encoded_key)
+
         path = NibblePath(encoded_key)
 
         result = self._update(self._root, path, encoded_value)
@@ -113,6 +122,9 @@ class MerklePatriciaTrie:
 
         if self._root is None:
             return
+
+        if self._secure:
+            encoded_key = keccak_hash(encoded_key)
 
         path = NibblePath(encoded_key)
 
