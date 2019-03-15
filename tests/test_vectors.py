@@ -3,7 +3,6 @@ from mpt import MerklePatriciaTrie
 from mpt.hash import keccak_hash
 import os
 import json
-from collections import OrderedDict
 
 CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 BASE_FOLDER = os.path.join(CURRENT_FOLDER, 'test_vectors')
