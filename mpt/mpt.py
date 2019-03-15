@@ -28,14 +28,6 @@ class MerklePatriciaTrie:
         self._storage = storage
         self._root = root
 
-    def _get_node(self, node_ref):
-        raw_node = None
-        if len(node_ref) == 32:
-            raw_node = self._storage[node_ref]
-        else:
-            raw_node = node_ref
-        return Node.decode(raw_node)
-
     def root(self):
         """ Returns a root node of the trie. Type is `bytes` if trie isn't empty and `None` othrewise. """
         return self._root
@@ -65,7 +57,6 @@ class MerklePatriciaTrie:
         -------
         bytes
             Stored value associated with provided key.
-
 
         Raises
         ------
@@ -104,7 +95,7 @@ class MerklePatriciaTrie:
         self._root = result
 
     def delete(self, encoded_key):
-        '''
+        """
         This method removes a value associtated with provided key.
 
         Note: this method does not RLP-encode the key. If you use encoded keys, you should encode it yourself.
@@ -118,7 +109,7 @@ class MerklePatriciaTrie:
         ------
         KeyError
             KeyError is raised if there is no value assotiated with provided key.
-        '''
+        """
 
         if self._root is None:
             return
@@ -136,6 +127,14 @@ class MerklePatriciaTrie:
         elif action == MerklePatriciaTrie._DeleteAction.USELESS_BRANCH:
             _, new_root = info
             self._root = new_root
+
+    def _get_node(self, node_ref):
+        raw_node = None
+        if len(node_ref) == 32:
+            raw_node = self._storage[node_ref]
+        else:
+            raw_node = node_ref
+        return Node.decode(raw_node)
 
     def _get(self, node_ref, path):
         """ Get support method """

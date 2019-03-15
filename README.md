@@ -15,6 +15,7 @@ trie.update(b'dog', b'puppy')
 trie.update(b'doge', b'coin')
 trie.update(b'horse', b'stallion')
 
+old_root = trie.root()
 old_root_hash = trie.root_hash()
 
 print("Root hash is {}".format(old_root_hash.hex()))
@@ -23,7 +24,7 @@ trie.delete(b'doge')
 
 print("New root hash is {}".format(trie.root_hash().hex()))
 
-trie_from_old_hash = MerklePatriciaTrie(storage, root=old_root_hash)
+trie_from_old_hash = MerklePatriciaTrie(storage, root=old_root)
 
 print(trie_from_old_hash.get(b'doge'))
 
