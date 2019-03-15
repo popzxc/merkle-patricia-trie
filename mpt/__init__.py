@@ -11,4 +11,7 @@
 
 __version__ = '0.1.0'
 
+
 from .mpt import MerklePatriciaTrie
+
+name = "mpt"
