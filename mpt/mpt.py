@@ -328,7 +328,7 @@ class MerklePatriciaTrie:
 
         if type(node) == Node.Leaf:
             # If it's leaf node, then it's either node we need or incorrect key provided.
-            if len(path) == 0 or path == node.path:
+            if path == node.path:
                 return MerklePatriciaTrie._DeleteAction.DELETED, None
             else:
                 raise KeyError
@@ -340,7 +340,7 @@ class MerklePatriciaTrie:
             # 2. Next node was updated. Then we should update stored reference.
             # 3. Next node was useless branch. Then we have to update our node depending on the next node type.
 
-            if not path.starts_with(node.path) or node.path == path:
+            if not path.starts_with(node.path):
                 raise KeyError
 
             action, info = self._delete(node.next_ref, path.consume(len(node.path)))
@@ -372,7 +372,7 @@ class MerklePatriciaTrie:
                 elif type(child) == Node.Branch:
                     # If next node is the branch, concatenate paths and update stored reference.
                     path = NibblePath.combine(node.path, stored_path)
-                    new_node = Node.Extension(path, node.next_ref)
+                    new_node = Node.Extension(path, stored_ref)
 
                 new_reference = self._store_node(new_node)
                 return MerklePatriciaTrie._DeleteAction.UPDATED, new_reference
