@@ -400,7 +400,10 @@ class MerklePatriciaTrie:
             assert len(path) != 0 or len(node.data) != 0, "Empty path or empty branch node in _delete"
 
             # Decide if we need to remove value of this node or go deeper.
-            if len(path) == 0 and len(node.data) != 0:
+            if len(path) == 0 and len(node.data) == 0:
+                # This branch node has no value thus we can't delete it.
+                raise KeyError
+            elif len(path) == 0 and len(node.data) != 0:
                 node.data = b''
                 action = MerklePatriciaTrie._DeleteAction.DELETED
             else:
