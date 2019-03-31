@@ -288,7 +288,7 @@ class MerklePatriciaTrie:
         if len(path) > 0:
             idx = path.at(0)
 
-            leaf_ref = self._update(None, path.consume(1), value)
+            leaf_ref = self._store_node(Node.Leaf(path.consume(1), value))
             branches[idx] = leaf_ref
 
     def _create_branch_extension(self, path, next_ref, branches):
@@ -314,7 +314,7 @@ class MerklePatriciaTrie:
 
     # Enum that shows which action was performed on the previous step of the deletion.
     class _DeleteAction(Enum):
-        # Node was deleted. Returned value should be (_DeleteAction).
+        # Node was deleted. Returned value should be (_DeleteAction, None).
         DELETED = 1,
         # Node was updated. Returned value should be (_DeleteAction, new_node_reference)
         UPDATED = 2,
@@ -340,9 +340,7 @@ class MerklePatriciaTrie:
             # 2. Next node was updated. Then we should update stored reference.
             # 3. Next node was useless branch. Then we have to update our node depending on the next node type.
 
-            assert len(path) != 0, "Empty path for extension node in _delete"
-
-            if not path.starts_with(node.path):
+            if not path.starts_with(node.path) or node.path == path:
                 raise KeyError
 
             action, info = self._delete(node.next_ref, path.consume(len(node.path)))
