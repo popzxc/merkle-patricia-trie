@@ -10,7 +10,10 @@ class NibblePath:
         return len(self._data) * 2 - self._offset
 
     def __repr__(self):
-        return "<NibblePath object with Data: {}, Offset: {}>".format(list(map(hex, self._data)), self._offset)
+        return "<NibblePath: Data: 0x{}, Offset: {}>".format(self._data.hex(), self._offset)
+
+    def __str__(self):
+        return '<Hex 0x{} | Raw {}>'.format(self._data.hex(), self._data)
 
     def __eq__(self, other):
         if len(self) != len(other):
