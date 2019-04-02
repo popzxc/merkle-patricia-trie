@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="eth_mpt",
-    version="0.1.0",
+    version="0.2.0",
     author="Igor Aleksanov",
     author_email="popzxc@yandex.com",
     description="A simlpe Merkle Patricia Trie implementation",
