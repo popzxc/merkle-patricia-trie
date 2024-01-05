@@ -18,7 +18,7 @@ setuptools.setup(
         'eth-hash==0.2.0',
         'eth-typing==2.0.0',
         'eth-utils==1.4.1',
-        'pycryptodome==3.7.3',
+        'pycryptodome==3.19.1',
         'rlp==1.1.0',
         'toolz==0.9.0',
     ],
