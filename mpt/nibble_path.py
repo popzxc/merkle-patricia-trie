@@ -9,6 +9,9 @@ class NibblePath:
     def __len__(self):
         return len(self._data) * 2 - self._offset
 
+    def __repr__(self):
+        return "<NibblePath: Data: 0x{}, Offset: {}>".format(self._data.hex(), self._offset)
+
     def __str__(self):
         # Convert each nibble in the list to its hexadecimal representation
         hex_string = ''.join(f'{nibble:02x}' for nibble in self._data)
