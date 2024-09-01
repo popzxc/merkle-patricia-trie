@@ -9,11 +9,10 @@ class NibblePath:
     def __len__(self):
         return len(self._data) * 2 - self._offset
 
-    def __repr__(self):
-        return "<NibblePath: Data: 0x{}, Offset: {}>".format(self._data.hex(), self._offset)
-
     def __str__(self):
-        return '<Hex 0x{} | Raw {}>'.format(self._data.hex(), self._data)
+        # Convert each nibble in the list to its hexadecimal representation
+        hex_string = ''.join(f'{nibble:02x}' for nibble in self._data)
+        return f'<Hex 0x{hex_string} | Raw {self._data}>'
 
     def __eq__(self, other):
         if len(self) != len(other):
@@ -59,7 +58,9 @@ class NibblePath:
         byte = self._data[byte_idx]
 
         nibble = byte >> 4 if nibble_idx == 0 else byte & 0x0F
-
+        """
+        Masking the upper lower part with logical right shift when nibble_idx == 0 and lower part with bitwise AND against 0x0F while nibble_idx == 1
+        """
         return nibble
 
     def consume(self, amount):
@@ -69,7 +70,6 @@ class NibblePath:
 
     def _create_new(path, length):
         """ Creates a new NibblePath from a given object with a certain length. """
-        bytes_len = (length + 1) / 2
         data = []
 
         is_odd_len = length % 2 == 1
