@@ -3,52 +3,62 @@ name: Pull Request & Push to Master Branch
 on:
   push:
     branches:
-      master
+      - master
+      - versioned/*
   pull_request:
-    branches:
-      master
+    branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  EVMOS_REST_API_URL: ${{ secrets.EVMOS_REST_API_URL }}
+  SENDER_ADDRESS: ${{ secrets.SENDER_ADDRESS }}
+  SENDER_PUBKEY: ${{ secrets.SENDER_PUBKEY }}
+  SENDER_PRIVKEY: ${{ secrets.SENDER_PRIVKEY }}
+  RECEIVER_ADDRESS: ${{ secrets.RECEIVER_ADDRESS }}
+  RECEIVER_PUBKEY: ${{ secrets.RECEIVER_PUBKEY }}
+  RECEIVER_PRIVKEY: ${{ secrets.RECEIVER_PRIVKEY }}
 
 jobs:
   lint:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10']
-      fail-fast: false
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+      - uses: actions/checkout@v4
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          pip install pre-commit
-      - name: Run pre-commit
-        run: |
-          pre-commit install
-          pre-commit run --all-files -v
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: pre-commit/action@v3.0.1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10']
-      fail-fast: false
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        deps: [highest]
+        include:
+          - python-version: '3.9'
+            deps: lowest-direct
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          pip install -U pip setuptools wheel
-          pip install .
-      - name: Run regular tests
-        run: |
-          python -m unittest
+
+      - name: Install deps
+        run: uv sync --no-install-project
+        env:
+          UV_RESOLUTION: ${{ matrix.deps }}
+
+      - name: Run tests
+        run: uv run -m unittest
+        env:
+          UV_RESOLUTION: ${{ matrix.deps }}

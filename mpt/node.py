@@ -5,6 +5,8 @@ import rlp
 from .hash import keccak_hash
 from .nibble_path import NibblePath
 
+NODE_REF_LENGTH = 32
+
 
 def _prepare_reference_for_usage(ref):
     """Encodes reference into RLP so stored references will appear as bytes."""
@@ -16,7 +18,7 @@ def _prepare_reference_for_usage(ref):
 
 def _prepare_reference_for_encoding(ref):
     """Decodes RLP-encoded reference so the full node will be encoded correctly."""
-    if 0 < len(ref) < 32:
+    if 0 < len(ref) < NODE_REF_LENGTH:
         return rlp.decode(ref)
 
     return ref
@@ -60,7 +62,7 @@ class Node:
 
         def encode(self):
             branches = list(map(_prepare_reference_for_encoding, self.branches))
-            return rlp.encode(branches + [self.data])
+            return rlp.encode([*branches, self.data])
 
         def raw(self):
             return [*self.branches, self.data]
@@ -73,7 +75,7 @@ class Node:
         if len(data) not in {17, 2}:
             raise ValueError('Unknown data format.')
 
-        if len(data) == 17:
+        if len(data) == 17:  # noqa: PLR2004
             branches = list(map(_prepare_reference_for_usage, data[:16]))
             node_data = data[16]
             return Node.Branch(branches, node_data)
@@ -81,9 +83,8 @@ class Node:
         path, is_leaf = NibblePath.decode_with_type(data[0])
         if is_leaf:
             return Node.Leaf(path, data[1])
-        else:
-            ref = _prepare_reference_for_usage(data[1])
-            return Node.Extension(path, ref)
+        ref = _prepare_reference_for_usage(data[1])
+        return Node.Extension(path, ref)
 
     @classmethod
     def into_reference(cls, node):
@@ -94,7 +95,6 @@ class Node:
         Otherwise reference is keccak hash of encoded node.
         """
         encoded_node = node.encode()
-        if len(encoded_node) < 32:
+        if len(encoded_node) < NODE_REF_LENGTH:
             return encoded_node
-        else:
-            return keccak_hash(encoded_node)
+        return keccak_hash(encoded_node)

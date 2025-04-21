@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from enum import Enum
-from typing import Iterator
 
 from .hash import keccak_hash
 from .nibble_path import NibblePath
-from .node import Node
+from .node import NODE_REF_LENGTH, Node
 
 
 class MerklePatriciaTrie:
@@ -50,10 +50,9 @@ class MerklePatriciaTrie:
         """
         if not self._root:
             return Node.EMPTY_HASH
-        elif len(self._root) == 32:
+        if len(self._root) == NODE_REF_LENGTH:
             return self._root
-        else:
-            return keccak_hash(self._root)
+        return keccak_hash(self._root)
 
     def get(self, encoded_key, default=None):
         try:
@@ -206,8 +205,7 @@ class MerklePatriciaTrie:
         raise KeyError
 
     def _get_node(self, node_ref):
-        raw_node = None
-        if len(node_ref) == 32:
+        if len(node_ref) == NODE_REF_LENGTH:
             raw_node = self._storage[node_ref]
         else:
             raw_node = node_ref
@@ -244,7 +242,7 @@ class MerklePatriciaTrie:
         # node without appropriate branch.
         raise KeyError
 
-    def _update(self, node_ref, path, value):
+    def _update(self, node_ref, path, value):  # noqa: PLR0911
         """Update support method."""
         if not node_ref:
             return self._store_node(Node.Leaf(path, value))
@@ -281,10 +279,9 @@ class MerklePatriciaTrie:
             # Otherwise, we need just branch node.
             if len(common_prefix) != 0:
                 return self._store_node(Node.Extension(common_prefix, branch_reference))
-            else:
-                return branch_reference
+            return branch_reference
 
-        elif isinstance(node, Node.Extension):
+        if isinstance(node, Node.Extension):
             # If we're updating an extenstion there are 2 possible ways:
             # 1. Key starts with the extension node's path.
             #    Then we just go ahead and all the work will be done there.
@@ -323,10 +320,9 @@ class MerklePatriciaTrie:
             # before branch node. Otherwise, we need just branch node.
             if len(common_prefix) != 0:
                 return self._store_node(Node.Extension(common_prefix, branch_reference))
-            else:
-                return branch_reference
+            return branch_reference
 
-        elif isinstance(node, Node.Branch):
+        if isinstance(node, Node.Branch):
             # For branch node things are easy.
             # 1. If key is empty, just store value in this node.
             # 2. If key isn't empty, just call `_update` with appropiate branch ref.
@@ -340,6 +336,8 @@ class MerklePatriciaTrie:
             node.branches[idx] = new_reference
 
             return self._store_node(node)
+
+        return None
 
     def _create_branch_node(self, path_a, value_a, path_b, value_b):
         """Create a branch node with up to two leaves and maybe value.
@@ -364,7 +362,7 @@ class MerklePatriciaTrie:
         return self._store_node(Node.Branch(branches, branch_value))
 
     def _create_branch_leaf(self, path, value, branches):
-        """If path isn't empty, creates leaf node and stores reference in appropriate branch."""  # noqa
+        """If path isn't empty, creates leaf node and stores reference in appropriate branch."""
         if len(path) > 0:
             idx = path.at(0)
 
@@ -377,9 +375,9 @@ class MerklePatriciaTrie:
         If needed, creates an extension node and stores reference in appropriate branch.
         Otherwise just stores provided reference.
         """
-        assert (
-            len(path) >= 1
-        ), 'Path for extension node should contain at least one nibble'
+        assert len(path) >= 1, (
+            'Path for extension node should contain at least one nibble'
+        )
 
         if len(path) == 1:
             branches[path.at(0)] = next_ref
@@ -389,9 +387,9 @@ class MerklePatriciaTrie:
             branches[idx] = reference
 
     def _store_node(self, node):
-        """Builds the reference from the node and if needed saves node in the storage."""  # noqa
+        """Builds the reference from the node and if needed saves node in the storage."""
         reference = Node.into_reference(node)
-        if len(reference) == 32:
+        if len(reference) == NODE_REF_LENGTH:
             self._storage[reference] = node.encode()
         return reference
 
@@ -402,10 +400,10 @@ class MerklePatriciaTrie:
         # Node was updated. Returned value should be (_DeleteAction, new_node_reference)
         UPDATED = 2
         # Branch became useless. Returned value should be
-        # (_DeleteAction, (path_to_new_reference, new_node_reference))
+        # of shape (_DeleteAction, (path_to_new_reference, new_node_reference))
         USELESS_BRANCH = 3
 
-    def _delete_branch(self, node, path):
+    def _delete_branch(self, node, path):  # noqa: PLR0911
         """Delete branch node.
 
         For branch node things are quite complicated.
@@ -435,7 +433,7 @@ class MerklePatriciaTrie:
         if len(path) == 0 and not node.data:
             # This branch node has no value thus we can't delete it.
             raise KeyError
-        elif len(path) == 0:
+        if len(path) == 0:
             node.data = b''
             action = MerklePatriciaTrie._DeleteAction.DELETED
         else:
@@ -448,12 +446,12 @@ class MerklePatriciaTrie:
             node.branches[idx] = b''
 
         if action == MerklePatriciaTrie._DeleteAction.DELETED:
-            non_empty_count = sum(map(lambda x: 1 if len(x) > 0 else 0, node.branches))
+            non_empty_count = sum(len(b) > 0 for b in node.branches)
 
             if non_empty_count == 0 and len(node.data) == 0:
                 # Branch node is empty, just delete it.
                 return MerklePatriciaTrie._DeleteAction.DELETED, None
-            elif non_empty_count == 0 and len(node.data) != 0:
+            if non_empty_count == 0 and len(node.data) != 0:
                 # No branches, just value.
                 path = NibblePath([])
                 reference = self._store_node(Node.Leaf(path, node.data))
@@ -462,26 +460,27 @@ class MerklePatriciaTrie:
                     path,
                     reference,
                 )
-            elif non_empty_count == 1 and len(node.data) == 0:
+            if non_empty_count == 1 and len(node.data) == 0:
                 # No value and one branch
                 return self._build_new_node_from_last_branch(node.branches)
-            else:
-                # Branch has value and 1+ branches or no value and 2+ branches.
-                # It isn't useless, so action is `UPDATED`.
-                reference = self._store_node(node)
-                return MerklePatriciaTrie._DeleteAction.UPDATED, reference
-        elif action == MerklePatriciaTrie._DeleteAction.UPDATED:
+            # Branch has value and 1+ branches or no value and 2+ branches.
+            # It isn't useless, so action is `UPDATED`.
+            reference = self._store_node(node)
+            return MerklePatriciaTrie._DeleteAction.UPDATED, reference
+        if action == MerklePatriciaTrie._DeleteAction.UPDATED:
             # Just update reference.
             next_ref = info
             node.branches[idx] = next_ref
             reference = self._store_node(node)
             return MerklePatriciaTrie._DeleteAction.UPDATED, reference
-        elif action == MerklePatriciaTrie._DeleteAction.USELESS_BRANCH:
+        if action == MerklePatriciaTrie._DeleteAction.USELESS_BRANCH:
             # Just update reference.
             _, next_ref = info
             node.branches[idx] = next_ref
             reference = self._store_node(node)
             return MerklePatriciaTrie._DeleteAction.UPDATED, reference
+
+        return None
 
     def _delete_extension(self, node, path):
         """Delete extension node.
@@ -502,12 +501,12 @@ class MerklePatriciaTrie:
         if action == MerklePatriciaTrie._DeleteAction.DELETED:
             # Next node was deleted. This node should be deleted also.
             return action, None
-        elif action == MerklePatriciaTrie._DeleteAction.UPDATED:
+        if action == MerklePatriciaTrie._DeleteAction.UPDATED:
             # Next node was updated. Update this node too.
             child_ref = info
             new_ref = self._store_node(Node.Extension(node.path, child_ref))
             return action, new_ref
-        elif action == MerklePatriciaTrie._DeleteAction.USELESS_BRANCH:
+        if action == MerklePatriciaTrie._DeleteAction.USELESS_BRANCH:
             # Next node was useless branch.
             stored_path, stored_ref = info
 
@@ -532,6 +531,8 @@ class MerklePatriciaTrie:
             new_reference = self._store_node(new_node)
             return MerklePatriciaTrie._DeleteAction.UPDATED, new_reference
 
+        return None
+
     def _delete(self, node_ref, path):
         """Delete method helper."""
         node = self._get_node(node_ref)
@@ -541,13 +542,15 @@ class MerklePatriciaTrie:
             if path == node.path:
                 return MerklePatriciaTrie._DeleteAction.DELETED, None
             raise KeyError
-        elif isinstance(node, Node.Extension):
+        if isinstance(node, Node.Extension):
             return self._delete_extension(node, path)
-        elif isinstance(node, Node.Branch):
+        if isinstance(node, Node.Branch):
             return self._delete_branch(node, path)
 
+        return None
+
     def _build_new_node_from_last_branch(self, branches):
-        """Combines nibble of the only branch left with underlying node and creates new node."""  # noqa
+        """Combines nibble of the only branch left with underlying node and creates new node."""
         # Find the index of the only stored branch.
         idx = 0
         for i in range(len(branches)):

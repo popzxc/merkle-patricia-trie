@@ -26,12 +26,12 @@ class TestNibblePath(unittest.TestCase):
 
     def test_encode(self):
         nibbles = NibblePath([0x12, 0x34])
-        self.assertEqual(nibbles.encode(False), b'\x00\x12\x34')
-        self.assertEqual(nibbles.encode(True), b'\x20\x12\x34')
+        self.assertEqual(nibbles.encode(is_leaf=False), b'\x00\x12\x34')
+        self.assertEqual(nibbles.encode(is_leaf=True), b'\x20\x12\x34')
 
         nibbles = NibblePath([0x12, 0x34], offset=1)
-        self.assertEqual(nibbles.encode(False), b'\x12\x34')
-        self.assertEqual(nibbles.encode(True), b'\x32\x34')
+        self.assertEqual(nibbles.encode(is_leaf=False), b'\x12\x34')
+        self.assertEqual(nibbles.encode(is_leaf=True), b'\x32\x34')
 
     def test_common_prefix(self):
         nibbles_a = NibblePath([0x12, 0x34])
@@ -67,7 +67,7 @@ class TestNibblePath(unittest.TestCase):
 
 
 class TestNode(unittest.TestCase):
-    def assertRoundtrip(self, raw_node, expected_type):
+    def assert_roundtrip(self, raw_node, expected_type):
         decoded = Node.decode(raw_node)
         encoded = decoded.encode()
 
@@ -79,7 +79,7 @@ class TestNode(unittest.TestCase):
         nibbles_path = bytearray([0x3A, 0xBC])
         data = bytearray([0xDE, 0xAD, 0xBE, 0xEF])
         raw_node = rlp.encode([nibbles_path, data])
-        self.assertRoundtrip(raw_node, Node.Leaf)
+        self.assert_roundtrip(raw_node, Node.Leaf)
 
 
 class TestMPT(unittest.TestCase):
@@ -131,7 +131,7 @@ class TestMPT(unittest.TestCase):
         random.seed(42)
         storage = {}
         rand_numbers = [random.randint(1, 1000000) for _ in range(100)]
-        keys = list(map(lambda x: str(x).encode(), rand_numbers))
+        keys = [str(x).encode() for x in rand_numbers]
 
         trie = MerklePatriciaTrie(storage)
 
@@ -178,8 +178,9 @@ class TestMPT(unittest.TestCase):
     def test_delete_lots(self):
         random.seed(42)
         storage = {}
-        rand_numbers = {random.randint(1, 1000000) for _ in range(100)}  # Unique only.
-        keys = list(map(lambda x: bytes(f'{x}', 'utf-8'), rand_numbers))
+        # Unique only.
+        rand_numbers = {random.randint(1, 1000000) for _ in range(100)}
+        keys = [str(x).encode('utf-8') for x in rand_numbers]
 
         trie = MerklePatriciaTrie(storage)
 

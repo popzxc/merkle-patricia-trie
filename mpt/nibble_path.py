@@ -27,7 +27,10 @@ class NibblePath:
     def __getitem__(self, idx):
         return self.at(idx)
 
-    def next(self):  # noqa: A003
+    def __hash__(self):
+        return hash((self._data, self._offset))
+
+    def next(self):
         first = self[0]
         self.consume(1)
         return first
@@ -56,7 +59,7 @@ class NibblePath:
 
     def at(self, idx):
         """Returns nibble at the certain position."""
-        idx = idx + self._offset
+        idx += self._offset
 
         byte_idx = idx // 2
         nibble_idx = idx % 2
@@ -133,8 +136,7 @@ class NibblePath:
         def at(self, idx):
             if idx < len(self.first):
                 return self.first.at(idx)
-            else:
-                return self.second.at(idx - len(self.first))
+            return self.second.at(idx - len(self.first))
 
     def combine(self, other):
         """Merges two paths into one."""

@@ -1,18 +1,13 @@
 [build-system]
+build-backend = "setuptools.build_meta"
 requires = [
     'setuptools',
     # toml is in standard library in 3.11+
     'toml>=0.10.1;python_version<"3.11"',
 ]
-build-backend = "setuptools.build_meta"
 
 [project]
-dynamic = ["version"]
-name = "merkle-patricia-trie"
 authors = [{name = "sterliakov", email = "terlya.stas@gmail.com"}]
-readme = "README.md"
-description = "A simlpe Merkle Patricia Trie implementation"
-license = { file = "LICENSE" }
 classifiers = [
     "Programming Language :: Python :: 3",
     "Intended Audience :: Developers",
@@ -20,54 +15,64 @@ classifiers = [
     'Operating System :: OS Independent',
     'Topic :: Security :: Cryptography',
 ]
-keywords = ["trie", "data-structures", "datastructures", "merkle-patricia-trie", "blockchain", "ethereum"]
 dependencies = [
-    'pysha3 ~= 1.0',
-    'rlp ~= 2.0',
+    "pycryptodome >=3.22.0, <4",
+    'rlp >=2.0, <5.0',
 ]
-requires-python = ">=3.7"
-
-[tool.setuptools.dynamic]
-version = {attr = "mpt.__version__"}
+description = "A simlpe Merkle Patricia Trie implementation"
+keywords = ["trie", "data-structures", "datastructures", "merkle-patricia-trie", "blockchain", "ethereum"]
+license = {file = "LICENSE"}
+name = "merkle-patricia-trie"
+readme = "README.md"
+requires-python = ">=3.9"
+version = "0.4.0"
 
 [project.urls]
 Home = "https://github.com/sterliakov/merkle-patricia-trie"
-Source = "https://github.com/sterliakov/merkle-patricia-trie"
 Issues = "https://github.com/sterliakov/merkle-patricia-trie/issues"
+Source = "https://github.com/sterliakov/merkle-patricia-trie"
 
-[tool.flake8]
-exclude = """
-    .git,
-    .github,
-    __pycache__,
-    .pytest_cache,
-    .env,
-    env,
-    .pyenv,
-    pyenv,
-    *.egg_info,
-"""
-max_line_length = 88
-extend_ignore = [
-    "E203",  # Invalid. Expressions like `[len(x) :]` conform with PEP8, but raise this.
-    "SIM905",  # Allow statement "hello world".split() instead of list literal
-    # "N806",  # Allow non-"lower_underscore" variables (it's too stupid rule)
-    "PIE798",  # Allow class with only static methods for namespacing
-    "RST306",  # Plugin can't resolve links defined in other docstrings.
-    "RST304",  # No builtin roles, so too much to do manually.
-    "RST301", "RST201",  # Incompatible with google doc style
-    "D10",  # Missing annotations
-    "D401",  # Imperative mood of first docstring line is not always encouraged
+[tool.ruff]
+preview = true
+target-version = 'py39'
+
+[tool.ruff.analyze]
+detect-string-imports = true
+
+[tool.ruff.format]
+docstring-code-format = true
+quote-style = "single"
+
+[tool.ruff.lint]
+extend-ignore = [
+    "S101",  # Use of `assert` detected
+    "TRY003",  # Avoid specifying long messages outside the exception class
+    "EM101",  # Exception must not use a string literal, assign to variable first
+    "EM102",  # Exception must not use an f-string literal, assign to variable first
+    "ANN",  # Type hints
+    "D",  # Docstrings
+    "TD",  # To-do comment lints
+    "FIX",  # Line contains TODO/FIXME/HACK, consider resolving the issue
+    "DOC",  # Docstrings
+    "CPY",  # copyright
+    "PT",  # pytest
+    "TC00",  # Move ... import `...` into a type-checking block
+    "PLW1514",  # `open` in text mode without explicit `encoding` argument
+    # conflicts with ruff-fmt
+    "E501",  # Let ruff care about line width, if not splitable - go on
+    "COM812",
+    "Q000",
+    "Q003",
+    # Good to enable later
+    "FBT",
 ]
-# Ignore
-per-file-ignores = [
-    "tests/*:D,RST,N802",  # We don't care about docstrings in tests; assertSomething case
-]
-max-complexity = 10
+extend-safe-fixes = ["F401"]
+select = ['ALL']
 
-# Docstring validation
-docstring-convention = "google"
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-wrap-aliases = true
+split-on-trailing-comma = false
 
-
-[tool.isort]
-profile = "black"
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S311", "N802"]

@@ -1,15 +1,15 @@
 import json
-import os
 import unittest
+from pathlib import Path
 
 from mpt import MerklePatriciaTrie
 
-CURRENT_FOLDER = os.path.dirname(os.path.realpath(__file__))
-BASE_FOLDER = os.path.join(CURRENT_FOLDER, 'test_vectors')
+CURRENT_FOLDER = Path(__file__).parent
+BASE_FOLDER = CURRENT_FOLDER / 'test_vectors'
 
 
 def make_testvector_name(name):
-    return os.path.join(BASE_FOLDER, name)
+    return BASE_FOLDER / name
 
 
 def normalize_value(v):
@@ -18,8 +18,7 @@ def normalize_value(v):
 
     if v.startswith('0x'):
         return bytes.fromhex(v[2:])
-    else:
-        return bytes(v, 'utf-8')
+    return bytes(v, 'utf-8')
 
 
 def normalize_kv(k, v):
@@ -28,7 +27,7 @@ def normalize_kv(k, v):
 
 class TestVectors(unittest.TestCase):
     def run_testvector(self, name, secure):
-        with open(make_testvector_name(name)) as f:
+        with make_testvector_name(name).open() as f:
             data = json.load(f)
             for test in data:
                 input_data = data[test]['in']
@@ -40,7 +39,7 @@ class TestVectors(unittest.TestCase):
                 )
 
                 for k, v in data_samples:
-                    k, v = normalize_kv(k, v)
+                    k, v = normalize_kv(k, v)  # noqa: PLW2901
 
                     if v:
                         trie.update(k, v)
